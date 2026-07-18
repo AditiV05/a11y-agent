@@ -65,35 +65,53 @@ def apply_fix(page, bad_html, new_level):
     }""", {"badHtml": bad_html, "newLevel": new_level})
 
 
-def verify(page):
-    """Re-run axe and check if the heading-order problem is gone."""
-    results = scan(page)
-    return find_heading_issue(results) is None
+def get_bad_heading(page):
+    """Re-scan and return the first bad heading's HTML, or None if all clear."""
+    issue = find_heading_issue(scan(page))
+    if issue is None:
+        return None
+    return issue["nodes"][0]["html"]
 
 if __name__ == "__main__":
+    MAX_RETRIES = 2
+
     with sync_playwright() as p:
         browser = p.chromium.launch()
         page = browser.new_page()
         page.goto(URL, wait_until="load")
 
-        issue = find_heading_issue(scan(page))
+        fixed_count = 0
+        failed_count = 0
 
-        if not issue:
-            print("No heading-order problem found.")
-        else:
-            bad_html = issue["nodes"][0]["html"]
+        # Type A: keep going while any bad heading remains.
+        while True:
+            bad_html = get_bad_heading(page)
+            if bad_html is None:
+                break  # all heading-order problems cleared
+
+            print(f"\nProblem heading: {bad_html}")
             outline = get_heading_outline(page)
-            print("Bad heading:", bad_html)
 
-            new_level = ask_llm_for_level(outline, bad_html)
-            print("LLM suggests:", new_level)
+            # Type B: retry this one heading up to MAX_RETRIES times.
+            cleared = False
+            for attempt in range(1, MAX_RETRIES + 1):
+                new_level = ask_llm_for_level(outline, bad_html)
+                print(f"  attempt {attempt}: LLM suggests {new_level}")
+                apply_fix(page, bad_html, new_level)
 
-            apply_fix(page, bad_html, new_level)
-            print("Applied fix.")
+                # Did THIS heading get cleared? Re-scan and check.
+                if get_bad_heading(page) != bad_html:
+                    print(f"  ✅ cleared")
+                    cleared = True
+                    fixed_count += 1
+                    break
+                else:
+                    print(f"  ↻ still flagged, retrying")
 
-            if verify(page):
-                print("✅ VERIFIED — heading-order problem is gone.")
-            else:
-                print("❌ Fix did not clear the violation.")
+            if not cleared:
+                print(f"  ❌ gave up after {MAX_RETRIES} attempts")
+                failed_count += 1
+                break  # stop so we don't loop forever on an unfixable heading
 
+        print(f"\nDone. Fixed: {fixed_count}, Failed: {failed_count}")
         browser.close()

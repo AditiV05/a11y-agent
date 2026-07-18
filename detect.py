@@ -3,7 +3,7 @@ from playwright.sync_api import sync_playwright
 
 # Where we saved axe-core, and which page to scan.
 AXE_PATH = Path(__file__).parent / "vendor" / "axe.min.js"
-URL = "https://www.w3.org/WAI/demos/bad/before/home.html"  # intentionally broken page
+URL = (Path(__file__).parent / "test_page.html").resolve().as_uri()
 
 
 def scan(url):

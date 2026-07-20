@@ -1,10 +1,15 @@
+import sys
 from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 # Where we saved axe-core, and which page to scan.
 AXE_PATH = Path(__file__).parent / "vendor" / "axe.min.js"
-URL = (Path(__file__).parent / "test_page.html").resolve().as_uri()
 
+# Take the page from the command line; fall back to test_page.html if none given.
+if len(sys.argv) > 1:
+    URL = (Path(__file__).parent / sys.argv[1]).resolve().as_uri()
+else:
+    URL = (Path(__file__).parent / "test_page.html").resolve().as_uri()
 
 def scan(url):
     axe_source = AXE_PATH.read_text()

@@ -1,386 +1,398 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="utf-8">
-<title>a11y-agent report</title>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>a11y-agent — fix report</title>
 <style>
- body { font: 15px/1.55 -apple-system, system-ui, sans-serif;
-        max-width: 900px; margin: 40px auto; padding: 0 20px; color: #1a1a1a; }
- h1 { margin-bottom: 4px; }
- .meta { color: #666; font-size: 13px; margin-bottom: 28px; }
- .headline { background:#f4f7ff; border:1px solid #d4e0ff; border-radius:8px;
-              padding:16px 20px; margin-bottom:28px; }
- table { border-collapse: collapse; width: 100%; margin-bottom: 32px; }
- th, td { text-align:left; padding:8px 10px; border-bottom:1px solid #eee; font-size:14px; }
- section { border-top:2px solid #eee; padding-top:18px; margin-top:28px; }
- h2 { font-size: 17px; }
- h3 { font-size: 14px; margin: 18px 0 8px; }
- h3 small { font-weight: normal; color:#888; margin-left:8px; }
- .change { border:1px solid #eee; border-radius:6px; padding:10px 12px; margin-bottom:8px; }
- .sel code { font-size:12px; color:#555; }
- .badge { font-size:11px; padding:2px 7px; border-radius:10px; margin-left:8px; }
- .badge.ok { background:#e6f6ea; color:#1a7f37; }
- .badge.skip { background:#fdf1e3; color:#9a6700; }
- .q { font-size:11px; margin-left:6px; color:#666; }
- .q.fail { color:#b32d2d; }
- .before, .after { font-family: ui-monospace, Menlo, monospace; font-size:12.5px;
-                    white-space: pre-wrap; padding:3px 6px; border-radius:4px; margin-top:4px; }
- .before { background:#fff1f0; } .after { background:#f0fff4; }
- footer { margin-top:40px; color:#888; font-size:12.5px; border-top:1px solid #eee; padding-top:16px; }
-</style></head><body>
-<h1>a11y-agent — fix report</h1>
-<div class="meta">Generated 2026-07-23 17:19 · 4 page(s) ·
-  sample cap 5 nodes per issue type per page</div>
+:root {
+  --ink:      #14161a;
+  --ink-soft: #5b6069;
+  --paper:    #fcfcfb;
+  --card:     #ffffff;
+  --rule:     #e3e3df;
+  --t1:       #1c5c4b;
+  --t2:       #8a6216;
+  --t3:       #5c4a91;
+  --del-bg:   #fdf3f2;  --del-ink: #8f1f1a;
+  --add-bg:   #f1f7f2;  --add-ink: #14532d;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  --serif: Charter, "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+}
 
-<div class="headline">
-  <strong>Resolves 34/45 (76%) of axe-detected violations
-  of the four supported types</strong>, confirmed by re-scan.<br>
-  Of alt text applied, 80% rated adequate by an independent LLM judge
-  <em>(probabilistic — not a deterministic check)</em>.
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0 24px 96px;
+  background: var(--paper);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 15px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+.wrap { max-width: 940px; margin: 0 auto; }
+
+:focus-visible {
+  outline: 2px solid var(--t3);
+  outline-offset: 2px;
+}
+
+/* ---------- masthead ---------- */
+
+.masthead { padding: 64px 0 28px; border-bottom: 1px solid var(--ink); }
+
+h1 {
+  font-family: var(--serif);
+  font-weight: 400;
+  font-size: clamp(34px, 6vw, 52px);
+  line-height: 1.05;
+  letter-spacing: -0.015em;
+  margin: 0 0 18px;
+}
+h1 em { font-style: italic; }
+
+.meta {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  text-transform: uppercase;
+  letter-spacing: 0.09em;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+}
+
+/* ---------- the readout (signature) ---------- */
+
+.readout { padding: 40px 0 8px; }
+
+.readout-head {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-bottom: 22px;
+}
+
+.tier { padding: 18px 0; border-top: 1px solid var(--rule); }
+.tier:first-of-type { border-top: none; }
+
+.tier-top {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 9px;
+}
+
+.tier-id {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  padding: 2px 7px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+}
+
+.tier-name {
+  font-family: var(--serif);
+  font-size: 21px;
+  letter-spacing: -0.01em;
+}
+
+.tier-count {
+  font-family: var(--mono);
+  font-size: 13px;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.tier-proves { font-size: 13.5px; color: var(--ink-soft); margin-bottom: 12px; }
+
+.gauge {
+  height: 13px;
+  background: #ececea;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.gauge-fill { height: 100%; }
+
+/* Pattern, not just hue — the point of the whole thing. */
+.t1 { color: var(--t1); }
+.t1 .gauge-fill { background: var(--t1); }
+
+.t2 { color: var(--t2); }
+.t2 .gauge-fill {
+  background: repeating-linear-gradient(
+    -45deg, var(--t2) 0 3px, #ffffff 3px 6px);
+}
+
+.t3 { color: var(--t3); }
+.t3 .gauge-fill {
+  background: radial-gradient(var(--t3) 42%, transparent 44%) 0 0 / 6px 6px;
+  background-color: #ffffff;
+}
+
+/* ---------- headline sentence ---------- */
+
+.claim {
+  font-family: var(--serif);
+  font-size: 19px;
+  line-height: 1.5;
+  margin: 34px 0 0;
+  padding: 22px 0 0;
+  border-top: 1px solid var(--ink);
+}
+.claim strong { font-weight: 600; }
+.claim .qual { display: block; margin-top: 8px; font-size: 15.5px; color: var(--ink-soft); }
+
+/* ---------- controls ---------- */
+
+.controls {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 14px 0;
+  margin-top: 48px;
+  background: var(--paper);
+  border-bottom: 1px solid var(--rule);
+}
+.controls span {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin-right: 4px;
+}
+.controls button {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  letter-spacing: 0.06em;
+  padding: 5px 11px;
+  border: 1px solid var(--rule);
+  border-radius: 2px;
+  background: var(--card);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+.controls button[aria-pressed="true"] {
+  border-color: var(--ink);
+  color: var(--ink);
+  background: #f0efec;
+}
+
+/* ---------- pages ---------- */
+
+.page { padding-top: 46px; }
+
+h2 {
+  font-family: var(--mono);
+  font-size: 14px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  word-break: break-all;
+  margin: 0 0 4px;
+}
+.page-tally {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  margin-bottom: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+h3 {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  margin: 30px 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+.rule-tier {
+  font-family: var(--mono);
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 2px;
+  font-size: 10px;
+}
+
+/* ---------- change cards ---------- */
+
+.change {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-left-width: 3px;
+  border-radius: 3px;
+  padding: 12px 14px;
+  margin-bottom: 9px;
+}
+.change.is-applied { border-left-color: var(--t1); }
+.change.is-skipped { border-left-color: var(--rule); background: #faf9f7; }
+
+.change-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 9px;
+}
+.sel {
+  font-family: var(--mono);
+  font-size: 11.5px;
+  color: var(--ink-soft);
+  word-break: break-all;
+  flex: 1 1 320px;
+  min-width: 0;
+}
+.state {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.state.applied { color: var(--t1); }
+.state.skipped { color: var(--t2); }
+.judge {
+  font-family: var(--mono);
+  font-size: 10.5px;
+  letter-spacing: 0.05em;
+  white-space: nowrap;
+  color: var(--t3);
+}
+.judge.fail { color: #8f1f1a; }
+
+.line {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 5px 9px;
+  border-radius: 2px;
+  margin-top: 4px;
+}
+.line.del { background: var(--del-bg); color: var(--del-ink); }
+.line.add { background: var(--add-bg); color: var(--add-ink); }
+.line .mark { user-select: none; opacity: 0.55; }
+
+/* ---------- colophon ---------- */
+
+footer {
+  margin-top: 90px;
+  padding-top: 26px;
+  border-top: 1px solid var(--ink);
+}
+.colophon-head {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--ink-soft);
+  margin: 0 0 18px;
+}
+.colophon {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 44px;
+}
+.colophon p {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.65;
+  color: var(--ink-soft);
+  max-width: 46ch;
+}
+footer strong { color: var(--ink); font-weight: 600; }
+
+@media (max-width: 720px) {
+  .colophon { grid-template-columns: 1fr; gap: 14px; }
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="masthead">
+    <h1>Every fix, and <em>how far</em> to trust it.</h1>
+    <p class="meta">
+      <span>a11y-agent</span>
+      <span>23 Jul 2026 · 19:28</span>
+      <span>4 page(s)</span>
+      <span>cap 5 nodes / issue / page</span>
+    </p>
+  </header>
+
+  <main>
+
+  <section class="readout">
+    <h2 class="readout-head">Confidence by verification tier</h2>
+    <div class="tier t1">  <div class="tier-top">    <span class="tier-id">TIER 1</span>    <span class="tier-name">Deterministic</span>    <span class="tier-count">17/28 &nbsp;61%</span>  </div>  <p class="tier-proves">axe re-scan confirms the violation is gone</p>  <div class="gauge" role="img" aria-label="17 of 28 — 61%">    <div class="gauge-fill" style="width:60.7%"></div>  </div></div><div class="tier t2">  <div class="tier-top">    <span class="tier-id">TIER 2</span>    <span class="tier-name">Presence</span>    <span class="tier-count">17/17 &nbsp;100%</span>  </div>  <p class="tier-proves">the required attribute now exists — quality unverified</p>  <div class="gauge" role="img" aria-label="17 of 17 — 100%">    <div class="gauge-fill" style="width:100.0%"></div>  </div></div><div class="tier t3">  <div class="tier-top">    <span class="tier-id">TIER 3</span>    <span class="tier-name">Probabilistic</span>    <span class="tier-count">11/15 &nbsp;73%</span>  </div>  <p class="tier-proves">a separate vision model judged the alt text — not a deterministic check</p>  <div class="gauge" role="img" aria-label="11 of 15 — 73%">    <div class="gauge-fill" style="width:73.3%"></div>  </div></div>
+
+    <p class="claim">
+      <strong>Resolves 34 of 45 (76%) axe-detected violations
+      of the four supported types</strong>, confirmed by re-scan.
+      <span class="qual">Of the alt text applied, 73% was rated adequate by an
+      independent vision model — a probabilistic judgement, not a guarantee.</span>
+    </p>
+  </section>
+
+  <div class="controls">
+    <span>Show</span>
+    <button data-filter="all" aria-pressed="true">All</button>
+    <button data-filter="applied" aria-pressed="false">Applied</button>
+    <button data-filter="skipped" aria-pressed="false">Skipped</button>
+  </div>
+
+  <section class="page">  <h2>https://jaipur.manipal.edu/</h2>  <p class="page-tally">heading-order 1/1  ·  color-contrast 2/5  ·  image-alt 5/5</p>  <div class="rule-group">  <h3>heading-order<span class="rule-tier t1">tier 1</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.cloned.owl-item:nth-child(1) &gt; .item &gt; .justify-content-center.d-flex.row &gt; .col-md-4:nth-child(1) &gt; .home-why-muj-list-box &gt; li:nth-child(1) &gt; a &gt; h4</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;h4&gt;Vibrant&lt;br&gt; Campus&lt;/h4&gt;</div>  <div class="line add"><span class="mark">+ </span>&lt;h3&gt;Vibrant&lt;br&gt; Campus&lt;/h3&gt;</div></div></div><div class="rule-group">  <h3>color-contrast<span class="rule-tier t1">tier 1</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.resp-tab-active.hor_1[aria-controls=&quot;hor_1_tab_item-0&quot;]</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>color: #d3632d on #2e2a2b (ratio 3.77)</div>  <div class="line add"><span class="mark">+ </span>color: #e2723c (ratio ≥ 4.5)</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">marquee</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>color: #ff0000 on #ffffff (ratio 3.99)</div>  <div class="line add"><span class="mark">+ </span>color: #eb0000 (ratio ≥ 4.5)</div></div><div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">marquee &gt; a[target=&quot;_blank&quot;]:nth-child(1)</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>color: #ff0000 on #ffffff (ratio 3.99)</div>  <div class="line add"><span class="mark">+ </span>color: #eb0000 (ratio ≥ 4.5)</div></div><div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">marquee &gt; a[target=&quot;_blank&quot;]:nth-child(2)</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>color: #ff0000 on #ffffff (ratio 3.99)</div>  <div class="line add"><span class="mark">+ </span>color: #eb0000 (ratio ≥ 4.5)</div></div><div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">a[target=&quot;_blank&quot;]:nth-child(3)</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>color: #ff0000 on #ffffff (ratio 3.99)</div>  <div class="line add"><span class="mark">+ </span>color: #eb0000 (ratio ≥ 4.5)</div></div></div><div class="rule-group">  <h3>image-alt<span class="rule-tier t2">tier 2 + tier 3</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">img[src$=&quot;home-about-bg.jpg&quot;]</code>    <span class="state applied">applied</span><span class="judge fail">judged inadequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;img/home-about-bg.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;A neoclassical building with a large dome and columns, surrounded by a circular arrangement of stylized leaves.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.col-md-6[div=&quot;&quot;]:nth-child(1) &gt; .home-news-box &gt; .img-fluid</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;https://jaipur.manipal.edu/admin/photo/3/event/801/2517.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;A large, modern building with a prominent golden dome, flanked by palm trees and accessed by a wide staircase, under a bright blue sky.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.col-md-6[div=&quot;&quot;]:nth-child(2) &gt; .home-news-box &gt; .img-fluid</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;https://jaipur.manipal.edu/admin/photo/16/event/862/2666.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;Poster for the International Conference on Media, Communication, and Global Society (ICMCGS 2027), scheduled for January 21-22, 2027, organized by the Centre for Distance and Online Education at Manipal University Jaipur, featuring the university&#x27;s building and icons representing the Sustainable Development Goals.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.col-md-6[div=&quot;&quot;]:nth-child(3) &gt; .home-news-box &gt; .img-fluid</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;https://jaipur.manipal.edu/admin/photo/5/event/866/2677.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;An announcement for the International Conference on Redefining Business in the Age of Intelligent Transformation and Sustainability, scheduled for December 17-19, 2026, hosted by Manipal University Jaipur, featuring icons representing the UN Sustainable Development Goals.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.col-md-6[div=&quot;&quot;]:nth-child(4) &gt; .home-news-box &gt; .img-fluid</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;https://jaipur.manipal.edu/admin/photo/5/event/847/2638.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;Promotional poster for the 1st International Conference on Cyber Intelligence, Digital Forensics &amp; Secure Systems, scheduled for December 11-12, 2026, at Manipal University Jaipur, outlining the conference details, tracks, important dates, and contact information.&quot;</div></div></div></section><section class="page">  <h2>https://sfsdelhi.com/</h2>  <p class="page-tally">heading-order 5/5  ·  color-contrast 5/5</p>  <div class="rule-group">  <h3>heading-order<span class="rule-tier t1">tier 1</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.swiper-slide-prev.swiper-slide-duplicate-next[data-swiper-slide-index=&quot;1&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;h5 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h5&gt;</div>  <div class="line add"><span class="mark">+ </span>&lt;h4 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h4&gt;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.swiper-slide-prev.swiper-slide-duplicate-next[aria-label=&quot;1 / 2&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;h5 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h5&gt;</div>  <div class="line add"><span class="mark">+ </span>&lt;h4 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h4&gt;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.swiper-slide-active[data-swiper-slide-index=&quot;1&quot;][aria-label=&quot;2 / 2&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;h5 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h5&gt;</div>  <div class="line add"><span class="mark">+ </span>&lt;h4 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h4&gt;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.swiper-slide-next.swiper-slide-duplicate-prev[aria-label=&quot;1 / 2&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;h5 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h5&gt;</div>  <div class="line add"><span class="mark">+ </span>&lt;h4 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h4&gt;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.swiper-slide-active.swiper-slide-duplicate[aria-label=&quot;1 / 2&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;h5 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h5&gt;</div>  <div class="line add"><span class="mark">+ </span>&lt;h4 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h4&gt;</div></div></div><div class="rule-group">  <h3>color-contrast<span class="rule-tier t1">tier 1</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.event-item:nth-child(3) &gt; .date</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>color: #777777 on #f9f9f9 (ratio 4.25)</div>  <div class="line add"><span class="mark">+ </span>color: #727272 (ratio ≥ 4.5)</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.event-item:nth-child(4) &gt; .date</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>color: #777777 on #f9f9f9 (ratio 4.25)</div>  <div class="line add"><span class="mark">+ </span>color: #727272 (ratio ≥ 4.5)</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.event-item:nth-child(5) &gt; .date</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>color: #777777 on #f9f9f9 (ratio 4.25)</div>  <div class="line add"><span class="mark">+ </span>color: #727272 (ratio ≥ 4.5)</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.event-item:nth-child(6) &gt; .date</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>color: #777777 on #f9f9f9 (ratio 4.25)</div>  <div class="line add"><span class="mark">+ </span>color: #727272 (ratio ≥ 4.5)</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.event-item:nth-child(1) &gt; .date</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>color: #777777 on #f9f9f9 (ratio 4.25)</div>  <div class="line add"><span class="mark">+ </span>color: #727272 (ratio ≥ 4.5)</div></div></div></section><section class="page">  <h2>https://vvdav.org/</h2>  <p class="page-tally">heading-order 1/1  ·  color-contrast 2/5  ·  image-alt 5/5</p>  <div class="rule-group">  <h3>heading-order<span class="rule-tier t1">tier 1</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">#pills-profile &gt; .row-cols-md-3.row-cols-1.g-5 &gt; .col:nth-child(1) &gt; .mb-3.card &gt; .g-0.row &gt; .col-md-7 &gt; .card-body &gt; h5</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;h5 class=&quot;card-title&quot;&gt;&lt;a href=&quot;/36542/Event/Detail/Dav&quot;&gt;INTERNATIONAL FAMILY DAY&lt;/a&gt; &lt;...</div>  <div class="line add"><span class="mark">+ </span>&lt;h4 class=&quot;card-title&quot;&gt;&lt;a href=&quot;/36542/Event/Detail/Dav&quot;&gt;INTERNATIONAL FAMILY DAY&lt;/a&gt; &lt;...</div></div></div><div class="rule-group">  <h3>color-contrast<span class="rule-tier t1">tier 1</span></h3>  <div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">#slick-slide02 &gt; div &gt; .singleSlider &gt; .flex-caption</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;p class=&quot;flex-caption&quot;&gt;STATE TEACHER AWARD&lt;/p&gt;</div>  <div class="line add"><span class="mark">+ </span>skipped — no colour reaches 4.5:1 against this background</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">li:nth-child(1) &gt; p:nth-child(2) &gt; a[href$=&quot;osm&quot;][target=&quot;_blank&quot;] &gt; strong</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>color: #1e87f0 on #ffffff (ratio 3.63)</div>  <div class="line add"><span class="mark">+ </span>color: #0a73dc (ratio ≥ 4.5)</div></div><div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">#slick-slide03 &gt; div &gt; .singleSlider &gt; .flex-caption</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;p class=&quot;flex-caption&quot;&gt;MUSIC LAB&lt;/p&gt;</div>  <div class="line add"><span class="mark">+ </span>skipped — no colour reaches 4.5:1 against this background</div></div><div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">.col:nth-child(1) &gt; .card &gt; .card-body &gt; .card-title &gt; a:nth-child(2)</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;a href=&quot;/CE6EE342-660C-468F-9511-E5CB5590F518/CMS/Page/Pre-School-Registrations---Age&quot;...</div>  <div class="line add"><span class="mark">+ </span>skipped — no colour reaches 4.5:1 against this background</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.col:nth-child(2) &gt; .card &gt; .card-body &gt; .card-title &gt; a:nth-child(2)</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>color: #ffffff on #f1c14f (ratio 1.68)</div>  <div class="line add"><span class="mark">+ </span>color: #505050 (ratio ≥ 4.5)</div></div></div><div class="rule-group">  <h3>image-alt<span class="rule-tier t2">tier 2 + tier 3</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">#imgAdvt</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img id=&quot;imgAdvt&quot; class=&quot;Mi-Image-Cover img-fluid&quot; src=&quot;../File/386/AdvtImg_d78ed2be-ca...</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;A metal pencil holder filled with colorful pencils sits next to several stacked notebooks on a reflective surface.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">img[src$=&quot;facebook.png&quot;]</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;../../../Images/facebook.png&quot; style=&quot;width: 8%&quot;&gt;</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;Facebook logo in a blue circle.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">img[src$=&quot;instagram.png&quot;]</code>    <span class="state applied">applied</span><span class="judge fail">judged inadequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;../../../Images/instagram.png&quot; style=&quot;width: 8%&quot;&gt;</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;Instagram logo featuring a camera icon in shades of purple, orange, and yellow.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">img[src$=&quot;youtube.png&quot;]</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;../../../Images/youtube.png&quot;&gt;</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;A red and white play button logo representing YouTube.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">img[src$=&quot;twitter.png&quot;]</code>    <span class="state applied">applied</span><span class="judge fail">judged inadequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;../../../Images/twitter.png&quot; style=&quot;width: 8%&quot;&gt;</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;A black silhouette of a plant with long leaves.&quot;</div></div></div></section><section class="page">  <h2>https://hyppy.in/</h2>  <p class="page-tally">heading-order 1/1  ·  color-contrast 0/5  ·  image-alt 5/5  ·  label 2/2</p>  <div class="rule-group">  <h3>heading-order<span class="rule-tier t1">tier 1</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.text-block--ATWh3a2N6d3lFOWNGZ__product_list_text_rUG3EL &gt; h3</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;h3&gt;&lt;em&gt;your favorites are back..&lt;/em&gt;&lt;/h3&gt;</div>  <div class="line add"><span class="mark">+ </span>&lt;h2&gt;&lt;em&gt;your favorites are back..&lt;/em&gt;&lt;/h2&gt;</div></div></div><div class="rule-group">  <h3>color-contrast<span class="rule-tier t1">tier 1</span></h3>  <div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">.menu-list__link[href$=&quot;new-in&quot;][ref=&quot;menuitem&quot;] &gt; .menu-list__link-title</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;span class=&quot;menu-list__link-title&quot;&gt;new in&lt;/span&gt;</div>  <div class="line add"><span class="mark">+ </span>skipped — no colour reaches 4.5:1 against this background</div></div><div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">.menu-list__list-item[role=&quot;presentation&quot;]:nth-child(2) &gt; .menu-list__link[ref=&quot;menuitem&quot;][data-skip-node-update=&quot;true&quot;] &gt; .menu-list__link-title</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;span class=&quot;menu-list__link-title&quot;&gt;bestsellers&lt;/span&gt;</div>  <div class="line add"><span class="mark">+ </span>skipped — no colour reaches 4.5:1 against this background</div></div><div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">a[aria-controls=&quot;submenu-3&quot;] &gt; .menu-list__link-title</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;span class=&quot;menu-list__link-title&quot;&gt;shop by category&lt;/span&gt;</div>  <div class="line add"><span class="mark">+ </span>skipped — no colour reaches 4.5:1 against this background</div></div><div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">a[aria-controls=&quot;submenu-4&quot;] &gt; .menu-list__link-title</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;span class=&quot;menu-list__link-title&quot;&gt;shop by theme&lt;/span&gt;</div>  <div class="line add"><span class="mark">+ </span>skipped — no colour reaches 4.5:1 against this background</div></div><div class="change is-skipped" data-state="skipped">  <div class="change-head">    <code class="sel">a[aria-controls=&quot;submenu-5&quot;] &gt; .menu-list__link-title</code>    <span class="state skipped">skipped</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;span class=&quot;menu-list__link-title&quot;&gt;shop by room&lt;/span&gt;</div>  <div class="line add"><span class="mark">+ </span>skipped — no colour reaches 4.5:1 against this background</div></div></div><div class="rule-group">  <h3>image-alt<span class="rule-tier t2">tier 2 + tier 3</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.header-logo__image</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img class=&quot;header-logo__image h...&quot; loading=&quot;lazy&quot; src=&quot;//hyppy.in/cdn/shop/...&quot; srcse...</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;The word &quot;Happy&quot; is written in a cursive, light-colored font on a dark background.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">img[width=&quot;3006&quot;]</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;//hyppy.in/cdn/shop/...&quot; srcset=&quot;//hyppy.in/cdn/shop/...&quot; width=&quot;3006&quot; height...</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;A sleeping orange cat curled up on a colorful checkered rug beside a bed, with the words &quot;hello! we&#x27;re back :)&quot; overlaying the image.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">.hero__video--desktop &gt; img</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;//hyppy.in/cdn/shop/files/preview_images/a2232a484e524bebac094e73290771cc.thu...</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;A green background with a small decorative flame at the top and text below reading, &quot;We are currently experiencing an outage and will be back online shortly, thank you for your patience.&quot;&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">img[width=&quot;1366&quot;]</code>    <span class="state applied">applied</span><span class="judge">judged adequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;//hyppy.in/cdn/shop/...&quot; srcset=&quot;//hyppy.in/cdn/shop/...&quot; width=&quot;1366&quot; height...</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;A person is holding a stack of four decorative pillows in various patterns and colors, including stripes and floral designs.&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">img[height=&quot;912&quot;]</code>    <span class="state applied">applied</span><span class="judge fail">judged inadequate</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;img src=&quot;//hyppy.in/cdn/shop/...&quot; srcset=&quot;//hyppy.in/cdn/shop/...&quot; width=&quot;2775&quot; height...</div>  <div class="line add"><span class="mark">+ </span>alt=&quot;Two young individuals sit on a couch with headphones on, one reading and the other holding a drink, surrounded by plants and soft decor, with a quote about warmth overlaying the scene.&quot;</div></div></div><div class="rule-group">  <h3>label<span class="rule-tier t2">tier 2</span></h3>  <div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">#bik-DO04cJcQevymZzVYmaLp-input-email</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;input id=&quot;bik-DO04cJcQevymZzVYmaLp-input-email&quot; type=&quot;email&quot; placeholder=&quot; &quot; class=&quot;Rv...</div>  <div class="line add"><span class="mark">+ </span>aria-label=&quot;Email address&quot;</div></div><div class="change is-applied" data-state="applied">  <div class="change-head">    <code class="sel">#bik-DO04cJcQevymZzVYmaLp-input-whatsapp</code>    <span class="state applied">applied</span>  </div>  <div class="line del"><span class="mark">− </span>&lt;input id=&quot;bik-DO04cJcQevymZzVYmaLp-input-whatsapp&quot; type=&quot;number&quot; placeholder=&quot; &quot; class...</div>  <div class="line add"><span class="mark">+ </span>aria-label=&quot;WhatsApp number&quot;</div></div></div></section>
+
+  </main>
+
+  <footer>
+    <p class="colophon-head">The guarantee</p>
+    <div class="colophon">
+      <p><strong>Detection and verification are deterministic.</strong> axe-core
+      decides what is broken and whether a fix cleared. The language model only
+      writes the content of a fix — the heading level, the alt text, the label.</p>
+      <p><strong>Nothing is written to the live site.</strong> Fixes are applied
+      to an in-memory copy of the page. These are suggested diffs: copilot,
+      not autopilot.</p>
+    </div>
+  </footer>
+
 </div>
-
-<table>
-  <tr><th>Issue type</th><th>Resolved</th><th>Verification</th></tr>
-  <tr><td>heading-order</td><td>8/8</td><td>Tier 1 — deterministic</td></tr><tr><td>color-contrast</td><td>9/20</td><td>Tier 1 — deterministic</td></tr><tr><td>image-alt</td><td>15/15</td><td>Tier 2 — presence (+ Tier 3 quality)</td></tr><tr><td>label</td><td>2/2</td><td>Tier 2 — presence</td></tr>
-</table>
-
-
-    <section>
-      <h2>https://jaipur.manipal.edu/</h2>
-      
-      <div class="type">
-        <h3>heading-order <small>Tier 1 — deterministic</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>.cloned.owl-item:nth-child(1) &gt; .item &gt; .justify-content-center.d-flex.row &gt; .col-md-4:nth-child(1) &gt; .home-why-muj-list-box &gt; li:nth-child(1) &gt; a &gt; h4</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;h4&gt;Vibrant&lt;br&gt; Campus&lt;/h4&gt;</div>
-          <div class="after">+ &lt;h3&gt;Vibrant&lt;br&gt; Campus&lt;/h3&gt;</div>
-        </div>
-      </div>
-      <div class="type">
-        <h3>color-contrast <small>Tier 1 — deterministic</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>.resp-tab-active.hor_1[aria-controls=&quot;hor_1_tab_item-0&quot;]</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- color: #d3632d on #2e2a2b (ratio 3.77)</div>
-          <div class="after">+ color: #e2723c (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>marquee</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- color: #ff0000 on #ffffff (ratio 3.99)</div>
-          <div class="after">+ color: #eb0000 (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>marquee &gt; a[target=&quot;_blank&quot;]:nth-child(1)</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- color: #ff0000 on #ffffff (ratio 3.99)</div>
-          <div class="after">+ color: #eb0000 (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>marquee &gt; a[target=&quot;_blank&quot;]:nth-child(2)</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- color: #ff0000 on #ffffff (ratio 3.99)</div>
-          <div class="after">+ color: #eb0000 (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>a[target=&quot;_blank&quot;]:nth-child(3)</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- color: #ff0000 on #ffffff (ratio 3.99)</div>
-          <div class="after">+ color: #eb0000 (ratio ≥ 4.5)</div>
-        </div>
-      </div>
-      <div class="type">
-        <h3>image-alt <small>Tier 2 — presence (+ Tier 3 quality)</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>img[src$=&quot;home-about-bg.jpg&quot;]</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;img/home-about-bg.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>
-          <div class="after">+ alt=&quot;A building with a prominent dome and columns is surrounded by a circular arrangement of stylized leaves.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.col-md-6[div=&quot;&quot;]:nth-child(1) &gt; .home-news-box &gt; .img-fluid</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;https://jaipur.manipal.edu/admin/photo/3/event/801/2517.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>
-          <div class="after">+ alt=&quot;A large, modern building with a golden dome and a staircase leading up to its entrance, surrounded by landscaped grounds and palm trees under a blue sky.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.col-md-6[div=&quot;&quot;]:nth-child(2) &gt; .home-news-box &gt; .img-fluid</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;https://jaipur.manipal.edu/admin/photo/16/event/862/2666.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>
-          <div class="after">+ alt=&quot;A promotional poster for the International Conference on Media, Communication and Global Society (ICMCGS) 2027, featuring details about the event, including dates, organization, and icons representing sustainable development goals, with a backdrop of a university building.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.col-md-6[div=&quot;&quot;]:nth-child(3) &gt; .home-news-box &gt; .img-fluid</code>
-            <span class="badge ok">applied</span><span class="q fail">quality: fail</span></div>
-          <div class="before">- &lt;img src=&quot;https://jaipur.manipal.edu/admin/photo/5/event/866/2677.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>
-          <div class="after">+ alt=&quot;International Conference on Redefining Business in the Age of Intelligent Transformation and Sustainability at Manipal University Jaipur, scheduled for December 17-19, 2026, featuring icons representing the UN Sustainable Development Goals.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.col-md-6[div=&quot;&quot;]:nth-child(4) &gt; .home-news-box &gt; .img-fluid</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;https://jaipur.manipal.edu/admin/photo/5/event/847/2638.jpg&quot; class=&quot;img-fluid&quot;&gt;</div>
-          <div class="after">+ alt=&quot;Announcement for the 1st International Conference on Cyber Intelligence, Digital Forensics &amp; Secure Systems at Manipal University Jaipur on December 11-12, 2026, detailing important dates, conference tracks, and key highlights.&quot;</div>
-        </div>
-      </div>
-    </section>
-    <section>
-      <h2>https://sfsdelhi.com/</h2>
-      
-      <div class="type">
-        <h3>heading-order <small>Tier 1 — deterministic</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>.swiper-slide-duplicate-active[data-swiper-slide-index=&quot;1&quot;][aria-label=&quot;2 / 2&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;h5 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h5&gt;</div>
-          <div class="after">+ &lt;h4 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h4&gt;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.swiper-slide-prev.swiper-slide-duplicate-next[aria-label=&quot;1 / 2&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;h5 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h5&gt;</div>
-          <div class="after">+ &lt;h4 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h4&gt;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.swiper-slide-active[data-swiper-slide-index=&quot;1&quot;][aria-label=&quot;2 / 2&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;h5 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h5&gt;</div>
-          <div class="after">+ &lt;h4 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h4&gt;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.swiper-slide-prev.swiper-slide-duplicate-next[data-swiper-slide-index=&quot;1&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;h5 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h5&gt;</div>
-          <div class="after">+ &lt;h4 class=&quot;mb-1&quot;&gt;Fr. Peter Mermier&lt;/h4&gt;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.swiper-slide-active.swiper-slide-duplicate[aria-label=&quot;1 / 2&quot;] &gt; .single-testimonial &gt; .rt-testimonial-author.mt--100 &gt; .rt-author-meta.rt-flex.rt-gap-20 &gt; .rt-author-info &gt; .mb-1</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;h5 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h5&gt;</div>
-          <div class="after">+ &lt;h4 class=&quot;mb-1&quot;&gt;St. Francis de Sales&lt;/h4&gt;</div>
-        </div>
-      </div>
-      <div class="type">
-        <h3>color-contrast <small>Tier 1 — deterministic</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>.event-item:nth-child(2) &gt; .date</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- color: #777777 on #f9f9f9 (ratio 4.25)</div>
-          <div class="after">+ color: #727272 (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.event-item:nth-child(3) &gt; .date</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- color: #777777 on #f9f9f9 (ratio 4.25)</div>
-          <div class="after">+ color: #727272 (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.event-item:nth-child(4) &gt; .date</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- color: #777777 on #f9f9f9 (ratio 4.25)</div>
-          <div class="after">+ color: #727272 (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.event-item:nth-child(5) &gt; .date</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- color: #777777 on #f9f9f9 (ratio 4.25)</div>
-          <div class="after">+ color: #727272 (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.event-item:nth-child(6) &gt; .date</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- color: #777777 on #f9f9f9 (ratio 4.25)</div>
-          <div class="after">+ color: #727272 (ratio ≥ 4.5)</div>
-        </div>
-      </div>
-    </section>
-    <section>
-      <h2>https://vvdav.org/</h2>
-      
-      <div class="type">
-        <h3>heading-order <small>Tier 1 — deterministic</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>#pills-profile &gt; .row-cols-md-3.row-cols-1.g-5 &gt; .col:nth-child(1) &gt; .mb-3.card &gt; .g-0.row &gt; .col-md-7 &gt; .card-body &gt; h5</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;h5 class=&quot;card-title&quot;&gt;&lt;a href=&quot;/36542/Event/Detail/Dav&quot;&gt;INTERNATIONAL FAMILY DAY&lt;/a&gt; &lt;...</div>
-          <div class="after">+ &lt;h4 class=&quot;card-title&quot;&gt;&lt;a href=&quot;/36542/Event/Detail/Dav&quot;&gt;INTERNATIONAL FAMILY DAY&lt;/a&gt; &lt;...</div>
-        </div>
-      </div>
-      <div class="type">
-        <h3>color-contrast <small>Tier 1 — deterministic</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>#slick-slide01 &gt; div &gt; .singleSlider &gt; .flex-caption</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- &lt;p class=&quot;flex-caption&quot;&gt;State-of-the-Art Multipurpose Sports Box&lt;/p&gt;</div>
-          <div class="after">+ skipped — no colour reaches 4.5:1 against this background</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>#slick-slide02 &gt; div &gt; .singleSlider &gt; .flex-caption</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- &lt;p class=&quot;flex-caption&quot;&gt;STATE TEACHER AWARD&lt;/p&gt;</div>
-          <div class="after">+ skipped — no colour reaches 4.5:1 against this background</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>li:nth-child(1) &gt; p:nth-child(2) &gt; a[href$=&quot;osm&quot;][target=&quot;_blank&quot;] &gt; strong</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- color: #1e87f0 on #ffffff (ratio 3.63)</div>
-          <div class="after">+ color: #0a73dc (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>li:nth-child(3) &gt; p:nth-child(2) &gt; a[href$=&quot;osm&quot;][target=&quot;_blank&quot;] &gt; strong</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- color: #1e87f0 on #ffffff (ratio 3.63)</div>
-          <div class="after">+ color: #0a73dc (ratio ≥ 4.5)</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>#slick-slide03 &gt; div &gt; .singleSlider &gt; .flex-caption</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- &lt;p class=&quot;flex-caption&quot;&gt;MUSIC LAB&lt;/p&gt;</div>
-          <div class="after">+ skipped — no colour reaches 4.5:1 against this background</div>
-        </div>
-      </div>
-      <div class="type">
-        <h3>image-alt <small>Tier 2 — presence (+ Tier 3 quality)</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>#imgAdvt</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img id=&quot;imgAdvt&quot; class=&quot;Mi-Image-Cover img-fluid&quot; src=&quot;../File/386/AdvtImg_d78ed2be-ca...</div>
-          <div class="after">+ alt=&quot;A container filled with colorful pencils sits next to a stack of notebooks on a reflective surface, with a chalkboard in the background.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>img[src$=&quot;facebook.png&quot;]</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;../../../Images/facebook.png&quot; style=&quot;width: 8%&quot;&gt;</div>
-          <div class="after">+ alt=&quot;Facebook logo in a blue circular background.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>img[src$=&quot;instagram.png&quot;]</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;../../../Images/instagram.png&quot; style=&quot;width: 8%&quot;&gt;</div>
-          <div class="after">+ alt=&quot;Instagram logo featuring a camera icon with a gradient background transitioning from orange to purple.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>img[src$=&quot;youtube.png&quot;]</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;../../../Images/youtube.png&quot;&gt;</div>
-          <div class="after">+ alt=&quot;A red and white YouTube logo with a play button symbol.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>img[src$=&quot;twitter.png&quot;]</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;../../../Images/twitter.png&quot; style=&quot;width: 8%&quot;&gt;</div>
-          <div class="after">+ alt=&quot;A stylized depiction of a spider.&quot;</div>
-        </div>
-      </div>
-    </section>
-    <section>
-      <h2>https://hyppy.in/</h2>
-      
-      <div class="type">
-        <h3>heading-order <small>Tier 1 — deterministic</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>.text-block--ATWh3a2N6d3lFOWNGZ__product_list_text_rUG3EL &gt; h3</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;h3&gt;&lt;em&gt;your favorites are back..&lt;/em&gt;&lt;/h3&gt;</div>
-          <div class="after">+ &lt;h2&gt;&lt;em&gt;your favorites are back..&lt;/em&gt;&lt;/h2&gt;</div>
-        </div>
-      </div>
-      <div class="type">
-        <h3>color-contrast <small>Tier 1 — deterministic</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>.menu-list__link[href$=&quot;new-in&quot;][ref=&quot;menuitem&quot;] &gt; .menu-list__link-title</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- &lt;span class=&quot;menu-list__link-title&quot;&gt;new in&lt;/span&gt;</div>
-          <div class="after">+ skipped — no colour reaches 4.5:1 against this background</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.menu-list__list-item[role=&quot;presentation&quot;]:nth-child(2) &gt; .menu-list__link[ref=&quot;menuitem&quot;][data-skip-node-update=&quot;true&quot;] &gt; .menu-list__link-title</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- &lt;span class=&quot;menu-list__link-title&quot;&gt;bestsellers&lt;/span&gt;</div>
-          <div class="after">+ skipped — no colour reaches 4.5:1 against this background</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>a[aria-controls=&quot;submenu-3&quot;] &gt; .menu-list__link-title</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- &lt;span class=&quot;menu-list__link-title&quot;&gt;shop by category&lt;/span&gt;</div>
-          <div class="after">+ skipped — no colour reaches 4.5:1 against this background</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>a[aria-controls=&quot;submenu-4&quot;] &gt; .menu-list__link-title</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- &lt;span class=&quot;menu-list__link-title&quot;&gt;shop by theme&lt;/span&gt;</div>
-          <div class="after">+ skipped — no colour reaches 4.5:1 against this background</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>a[aria-controls=&quot;submenu-5&quot;] &gt; .menu-list__link-title</code>
-            <span class="badge skip">skipped</span></div>
-          <div class="before">- &lt;span class=&quot;menu-list__link-title&quot;&gt;shop by room&lt;/span&gt;</div>
-          <div class="after">+ skipped — no colour reaches 4.5:1 against this background</div>
-        </div>
-      </div>
-      <div class="type">
-        <h3>image-alt <small>Tier 2 — presence (+ Tier 3 quality)</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>.header-logo__image</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img class=&quot;header-logo__image h...&quot; loading=&quot;lazy&quot; src=&quot;//hyppy.in/cdn/shop/...&quot; srcse...</div>
-          <div class="after">+ alt=&quot;The word &quot;Happy&quot; is depicted in an elegant, handwritten font with a light cream color on a dark background.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>img[width=&quot;3006&quot;]</code>
-            <span class="badge ok">applied</span><span class="q fail">quality: fail</span></div>
-          <div class="before">- &lt;img src=&quot;//hyppy.in/cdn/shop/...&quot; srcset=&quot;//hyppy.in/cdn/shop/...&quot; width=&quot;3006&quot; height...</div>
-          <div class="after">+ alt=&quot;A sleeping orange cat curled up on a colorful checkered rug with a message saying &quot;hello! we&#x27;re back :)&quot; written in white.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>.hero__video--desktop &gt; img</code>
-            <span class="badge ok">applied</span><span class="q fail">quality: fail</span></div>
-          <div class="before">- &lt;img src=&quot;//hyppy.in/cdn/shop/files/preview_images/a2232a484e524bebac094e73290771cc.thu...</div>
-          <div class="after">+ alt=&quot;A banner displaying the text &quot;It&#x27;s a wonderful day outside, let&#x27;s go play!&quot; along with a small illustration.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>img[width=&quot;1366&quot;]</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;//hyppy.in/cdn/shop/...&quot; srcset=&quot;//hyppy.in/cdn/shop/...&quot; width=&quot;1366&quot; height...</div>
-          <div class="after">+ alt=&quot;A person holds a stack of four decorative pillows with various patterns, including florals and stripes, featuring ruffled edges.&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>img[height=&quot;912&quot;]</code>
-            <span class="badge ok">applied</span><span class="q pass">quality: pass</span></div>
-          <div class="before">- &lt;img src=&quot;//hyppy.in/cdn/shop/...&quot; srcset=&quot;//hyppy.in/cdn/shop/...&quot; width=&quot;2775&quot; height...</div>
-          <div class="after">+ alt=&quot;Two children sit together in a cozy setting, wearing headphones and engaged in their activities, with a soft color palette and a quote overlay that says, &quot;Hippy feels like a warm hug.&quot;&quot;</div>
-        </div>
-      </div>
-      <div class="type">
-        <h3>label <small>Tier 2 — presence</small></h3>
-        
-        <div class="change">
-          <div class="sel"><code>#bik-DO04cJcQevymZzVYmaLp-input-email</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;input id=&quot;bik-DO04cJcQevymZzVYmaLp-input-email&quot; type=&quot;email&quot; placeholder=&quot; &quot; class=&quot;Rv...</div>
-          <div class="after">+ aria-label=&quot;Email address&quot;</div>
-        </div>
-        <div class="change">
-          <div class="sel"><code>#bik-DO04cJcQevymZzVYmaLp-input-whatsapp</code>
-            <span class="badge ok">applied</span></div>
-          <div class="before">- &lt;input id=&quot;bik-DO04cJcQevymZzVYmaLp-input-whatsapp&quot; type=&quot;number&quot; placeholder=&quot; &quot; class...</div>
-          <div class="after">+ aria-label=&quot;WhatsApp Number&quot;</div>
-        </div>
-      </div>
-    </section>
-
-<footer>
-  Detection and verification are deterministic (axe-core). The language model only
-  writes the content of a fix. Fixes are applied to an in-memory copy of the page —
-  nothing is sent back to the site. Suggested diffs only: copilot, not autopilot.
-</footer>
-</body></html>
+<script>
+const buttons = document.querySelectorAll('[data-filter]');
+buttons.forEach(btn => btn.addEventListener('click', () => {
+  const want = btn.dataset.filter;
+  buttons.forEach(b => b.setAttribute('aria-pressed', String(b === btn)));
+  document.querySelectorAll('.change').forEach(card => {
+    const state = card.dataset.state;
+    card.hidden = !(want === 'all' || want === state);
+  });
+  document.querySelectorAll('.rule-group').forEach(g => {
+    g.hidden = !g.querySelector('.change:not([hidden])');
+  });
+  document.querySelectorAll('.page').forEach(p => {
+    p.hidden = !p.querySelector('.rule-group:not([hidden])');
+  });
+}));
+</script>
+</body>
+</html>

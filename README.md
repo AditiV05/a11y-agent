@@ -6,9 +6,9 @@ confirms its own fixes actually cleared — with verification honest enough to
 distinguish _"a fix was applied"_ from _"the fix is good."_
 
 ```
-Resolves 76% of axe-detected violations of the four supported types
-(34/45 across 4 live sites), confirmed by re-scan.
-Of alt text applied, 80% rated adequate by an independent LLM judge
+Resolves 73–76% of axe-detected violations of the four supported types
+across 4 live sites (multiple runs, July 2026), confirmed by re-scan.
+Of alt text applied, 73–87% rated adequate by an independent LLM judge
 (probabilistic — not a deterministic check).
 ```
 
@@ -86,6 +86,10 @@ bug is in the harness, not the model. It caught two real bugs during development
 | label            | 2/2 (100%)      | Tier 2 — presence      |
 | **Overall**      | **34/45 (76%)** |                        |
 | Alt-text quality | 12/15 (80%)     | Tier 3 — probabilistic |
+
+The report the agent generates passes the audit the agent performs —
+`python detect.py output/report-real.html` returns zero violations. It
+found two landmark problems in an earlier draft, which are now fixed.
 
 The denominator is violations **of the four supported types only**. A real page
 throws 14+ distinct axe rules; this agent claims four of them and counts nothing
@@ -181,7 +185,8 @@ Regenerate the controlled test corpus with `python make_pages.py`.
 a11y-agent/
 ├── agent.py           # the four fixers + the shared detect/verify loop
 ├── detect.py          # detection only — the no-LLM spine
-├── evaluate.py        # eval harness, tiered metrics, HTML report
+├── evaluate.py        # eval harness and tiered metrics
+├── report.py          # HTML report rendering
 ├── make_pages.py      # generates the controlled test corpus
 ├── pages/             # 9 controlled test pages
 ├── vendor/axe.min.js  # pinned axe-core 4.12.1

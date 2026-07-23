@@ -20,6 +20,11 @@ AXE_PATH = Path(__file__).parent / "vendor" / "axe.min.js"
 MAX_RETRIES = 2
 MAX_NODES_PER_TYPE = 5   # sample cap — keeps real-page runs fast
 
+def short(html, limit=90):
+    """Collapse whitespace and trim for display."""
+    s = " ".join((html or "").split())
+    return s if len(s) <= limit else s[:limit - 3] + "..."
+
 
 # ---------- shared ----------
 
@@ -104,10 +109,11 @@ def apply_heading_fix(page, selector, new_level):
 
 
 def fix_headings(page):
-    """Returns (attempted, fixed)."""
+    """Returns {'attempted', 'fixed', 'changes'}."""
     found = count_nodes(page, "heading-order")
     attempted = min(found, MAX_NODES_PER_TYPE)
     fixed = 0
+    changes = []
     seen = set()
 
     for _ in range(attempted):
@@ -119,16 +125,151 @@ def fix_headings(page):
             break
         seen.add(sel)
         outline = get_heading_outline(page)
+        before = node["html"]
 
+        cleared = False
+        after = before
         for _ in range(MAX_RETRIES):
-            level = ask_llm_for_level(outline, node["html"])
+            level = ask_llm_for_level(outline, before)
             apply_heading_fix(page, sel, level)
+            after = re.sub(r"^<h[1-6]", f"<{level}", before)
+            after = re.sub(r"</h[1-6]>$", f"</{level}>", after)
             if not still_flagged(page, "heading-order", sel):
+                cleared = True
                 fixed += 1
                 break
 
-    return attempted, fixed
+        changes.append({"selector": sel, "before": short(before),
+                        "after": short(after), "cleared": cleared})
 
+    return {"attempted": attempted, "fixed": fixed, "changes": changes}
+
+
+def fix_contrast(page):
+    found = count_nodes(page, "color-contrast")
+    attempted = min(found, MAX_NODES_PER_TYPE)
+    fixed = 0
+    changes = []
+    seen = set()
+
+    for _ in range(attempted):
+        issue = find_violation(scan(page), "color-contrast")
+        if issue is None:
+            break
+        node, sel = next_unseen(issue, seen)
+        if node is None:
+            break
+        seen.add(sel)
+
+        data = (node.get("any") or [{}])[0].get("data") or {}
+        fg, bg = data.get("fgColor"), data.get("bgColor")
+        if not fg or not bg:
+            changes.append({"selector": sel, "before": short(node["html"]),
+                            "after": "skipped — axe could not resolve a background colour",
+                            "cleared": False})
+            continue
+
+        new_color = darken_until_readable(fg, bg)
+        apply_color_fix(page, sel, new_color)
+        cleared = not still_flagged(page, "color-contrast", sel)
+        if cleared:
+            fixed += 1
+
+        changes.append({
+            "selector": sel,
+            "before": f"color: {fg} on {bg} (ratio {data.get('contrastRatio', '?')})",
+            "after": f"color: {new_color} (ratio \u2265 4.5)",
+            "cleared": cleared,
+        })
+
+    return {"attempted": attempted, "fixed": fixed, "changes": changes}
+
+
+def fix_alt(page):
+    found = count_nodes(page, "image-alt")
+    attempted = min(found, MAX_NODES_PER_TYPE)
+    fixed = 0
+    quality_passed = 0
+    changes = []
+    seen = set()
+
+    for _ in range(attempted):
+        issue = find_violation(scan(page), "image-alt")
+        if issue is None:
+            break
+        node, sel = next_unseen(issue, seen)
+        if node is None:
+            break
+        seen.add(sel)
+
+        data = get_image_data(page, sel)
+        if data is None:
+            changes.append({"selector": sel, "before": short(node["html"]),
+                            "after": "skipped — image unreadable (svg, data URI, or blocked)",
+                            "cleared": False, "quality": None})
+            continue
+        b64, mime = data
+
+        alt = describe_image(b64, mime)
+        apply_alt_fix(page, sel, alt)
+        cleared = not still_flagged(page, "image-alt", sel)
+
+        quality = None
+        if cleared:
+            fixed += 1                                   # Tier 2
+            quality = judge_alt_quality(b64, mime, alt)  # Tier 3
+            if quality:
+                quality_passed += 1
+
+        changes.append({"selector": sel, "before": short(node["html"]),
+                        "after": f'alt="{alt}"', "cleared": cleared,
+                        "quality": quality})
+
+    return {"attempted": attempted, "fixed": fixed,
+            "quality_pass": quality_passed, "changes": changes}
+
+
+def fix_labels(page):
+    found = count_nodes(page, "label")
+    attempted = min(found, MAX_NODES_PER_TYPE)
+    fixed = 0
+    changes = []
+    seen = set()
+
+    for _ in range(attempted):
+        issue = find_violation(scan(page), "label")
+        if issue is None:
+            break
+        node, sel = next_unseen(issue, seen)
+        if node is None:
+            break
+        seen.add(sel)
+
+        label = suggest_label(node["html"])
+        apply_label_fix(page, sel, label)
+        cleared = not still_flagged(page, "label", sel)
+        if cleared:
+            fixed += 1
+
+        changes.append({"selector": sel, "before": short(node["html"]),
+                        "after": f'aria-label="{label}"', "cleared": cleared})
+
+    return {"attempted": attempted, "fixed": fixed, "changes": changes}
+
+
+def fix_page(page):
+    h, c, a, l = (fix_headings(page), fix_contrast(page),
+                  fix_alt(page), fix_labels(page))
+    return {
+        "heading-order": {"found": h["attempted"], "fixed": h["fixed"],
+                          "changes": h["changes"]},
+        "color-contrast": {"found": c["attempted"], "fixed": c["fixed"],
+                           "changes": c["changes"]},
+        "image-alt": {"found": a["attempted"], "fixed": a["fixed"],
+                      "quality_pass": a["quality_pass"], "changes": a["changes"]},
+        "label": {"found": l["attempted"], "fixed": l["fixed"],
+                  "changes": l["changes"]},
+    }
 
 # ---------- 2. contrast (pure math, Tier 1 — the control case) ----------
 
@@ -166,33 +307,6 @@ def apply_color_fix(page, selector, new_color):
         const el = document.querySelector(sel);
         if (el) el.style.setProperty('color', newColor, 'important');
     }""", {"sel": selector, "newColor": new_color})
-
-
-def fix_contrast(page):
-    found = count_nodes(page, "color-contrast")
-    attempted = min(found, MAX_NODES_PER_TYPE)
-    fixed = 0
-    seen = set()
-
-    for _ in range(attempted):
-        issue = find_violation(scan(page), "color-contrast")
-        if issue is None:
-            break
-        node, sel = next_unseen(issue, seen)
-        if node is None:
-            break
-        seen.add(sel)
-
-        data = (node.get("any") or [{}])[0].get("data") or {}
-        fg, bg = data.get("fgColor"), data.get("bgColor")
-        if not fg or not bg:
-            continue          # axe couldn't resolve colors (background image/gradient)
-
-        apply_color_fix(page, sel, darken_until_readable(fg, bg))
-        if not still_flagged(page, "color-contrast", sel):
-            fixed += 1
-
-    return attempted, fixed
 
 
 # ---------- 3. alt text (vision model, Tier 2 + Tier 3) ----------
@@ -267,38 +381,6 @@ def apply_alt_fix(page, selector, alt_text):
     }""", {"sel": selector, "altText": alt_text})
 
 
-def fix_alt(page):
-    """Returns (attempted, presence_fixed, quality_passed)."""
-    found = count_nodes(page, "image-alt")
-    attempted = min(found, MAX_NODES_PER_TYPE)
-    fixed = 0
-    quality_passed = 0
-    seen = set()
-
-    for _ in range(attempted):
-        issue = find_violation(scan(page), "image-alt")
-        if issue is None:
-            break
-        node, sel = next_unseen(issue, seen)
-        if node is None:
-            break
-        seen.add(sel)
-
-        data = get_image_data(page, sel)
-        if data is None:
-            continue          # unusable image — skip it, keep going
-        b64, mime = data
-
-        alt = describe_image(b64, mime)
-        apply_alt_fix(page, sel, alt)
-
-        if not still_flagged(page, "image-alt", sel):
-            fixed += 1                                   # Tier 2
-            if judge_alt_quality(b64, mime, alt):
-                quality_passed += 1                      # Tier 3
-
-    return attempted, fixed, quality_passed
-
 
 # ---------- 4. form labels (LLM judgment, Tier 2) ----------
 
@@ -321,40 +403,3 @@ def apply_label_fix(page, selector, label_text):
         if (inp) inp.setAttribute('aria-label', labelText);
     }""", {"sel": selector, "labelText": label_text})
 
-
-def fix_labels(page):
-    found = count_nodes(page, "label")
-    attempted = min(found, MAX_NODES_PER_TYPE)
-    fixed = 0
-    seen = set()
-
-    for _ in range(attempted):
-        issue = find_violation(scan(page), "label")
-        if issue is None:
-            break
-        node, sel = next_unseen(issue, seen)
-        if node is None:
-            break
-        seen.add(sel)
-
-        apply_label_fix(page, sel, suggest_label(node["html"]))
-        if not still_flagged(page, "label", sel):
-            fixed += 1
-
-    return attempted, fixed
-
-
-# ---------- run all four on one page ----------
-
-def fix_page(page):
-    h_found, h_fixed = fix_headings(page)
-    c_found, c_fixed = fix_contrast(page)
-    a_found, a_fixed, a_quality = fix_alt(page)
-    l_found, l_fixed = fix_labels(page)
-
-    return {
-        "heading-order": {"found": h_found, "fixed": h_fixed},
-        "color-contrast": {"found": c_found, "fixed": c_fixed},
-        "image-alt": {"found": a_found, "fixed": a_fixed, "quality_pass": a_quality},
-        "label": {"found": l_found, "fixed": l_fixed},
-    }

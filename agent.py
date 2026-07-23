@@ -144,6 +144,22 @@ def fix_headings(page):
 
     return {"attempted": attempted, "fixed": fixed, "changes": changes}
 
+def fix_color_for_contrast(fg_hex, bg_hex, target=4.5):
+    """Move the text colour toward black OR white — whichever the background
+    calls for — until it meets the target ratio. Darkening light text on a
+    dark background makes it worse, so direction matters."""
+    bg = _hex_to_rgb(bg_hex)
+    # A light background needs darker text; a dark background needs lighter text.
+    toward_black = _luminance(bg) > 0.5
+    step = -5 if toward_black else 5
+    limit = 0 if toward_black else 255
+
+    fg = list(_hex_to_rgb(fg_hex))
+    while _ratio(tuple(fg), bg) < target:
+        if all(c == limit for c in fg):
+            return None          # can't reach the target in either direction
+        fg = [max(0, min(255, c + step)) for c in fg]
+    return "#{:02x}{:02x}{:02x}".format(*fg)
 
 def fix_contrast(page):
     found = count_nodes(page, "color-contrast")
@@ -169,7 +185,12 @@ def fix_contrast(page):
                             "cleared": False})
             continue
 
-        new_color = darken_until_readable(fg, bg)
+        new_color = fix_color_for_contrast(fg, bg)
+        if new_color is None:
+            changes.append({"selector": sel, "before": short(node["html"]),
+                            "after": "skipped — no colour reaches 4.5:1 against this background",
+                            "cleared": False})
+            continue
         apply_color_fix(page, sel, new_color)
         cleared = not still_flagged(page, "color-contrast", sel)
         if cleared:
@@ -289,17 +310,6 @@ def _ratio(rgb1, rgb2):
 def _hex_to_rgb(h):
     h = h.lstrip("#")
     return tuple(int(h[i:i + 2], 16) for i in (0, 2, 4))
-
-
-def darken_until_readable(fg_hex, bg_hex, target=4.5):
-    fg = list(_hex_to_rgb(fg_hex))
-    bg = _hex_to_rgb(bg_hex)
-    while _ratio(tuple(fg), bg) < target:
-        fg = [max(0, c - 5) for c in fg]
-        if fg == [0, 0, 0]:
-            break
-    return "#{:02x}{:02x}{:02x}".format(*fg)
-
 
 def apply_color_fix(page, selector, new_color):
     # !important — site CSS often outranks a plain inline style.

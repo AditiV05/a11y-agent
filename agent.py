@@ -1,8 +1,8 @@
 """The a11y agent — all four fix types in one place.
 
-Each fixer follows the same shape: find the issue, produce a fix,
-apply it, then let axe verify. The LLM only ever writes the *content*
-of a fix; axe alone decides what's broken and whether it cleared.
+Each fixer: find the issue, produce a fix, apply it, let axe verify.
+The LLM only ever writes the *content* of a fix; axe alone decides
+what's broken and whether it cleared.
 """
 
 import base64
@@ -18,6 +18,7 @@ client = OpenAI()
 
 AXE_PATH = Path(__file__).parent / "vendor" / "axe.min.js"
 MAX_RETRIES = 2
+MAX_NODES_PER_TYPE = 5   # sample cap — keeps real-page runs fast
 
 
 # ---------- shared ----------
@@ -34,9 +35,35 @@ def find_violation(results, rule_id):
     return None
 
 
+def node_selector(node):
+    """axe TRUNCATES node['html'] on large elements, so exact string matching
+    fails on real pages. Its 'target' CSS selector is reliable — use that."""
+    target = node.get("target") or []
+    if len(target) != 1:
+        return None          # nested in an iframe — out of scope for v1
+    return target[0]
+
+
 def count_nodes(page, rule_id):
     v = find_violation(scan(page), rule_id)
     return len(v["nodes"]) if v else 0
+
+
+def still_flagged(page, rule_id, selector):
+    """Is THIS specific element still flagged? More precise than counting."""
+    issue = find_violation(scan(page), rule_id)
+    if issue is None:
+        return False
+    return any(node_selector(n) == selector for n in issue["nodes"])
+
+
+def next_unseen(issue, seen):
+    """First node we haven't already attempted."""
+    for n in issue["nodes"]:
+        sel = node_selector(n)
+        if sel and sel not in seen:
+            return n, sel
+    return None, None
 
 
 # ---------- 1. heading order (LLM judgment, Tier 1) ----------
@@ -44,7 +71,7 @@ def count_nodes(page, rule_id):
 def get_heading_outline(page):
     return page.evaluate("""() => Array.from(
         document.querySelectorAll('h1,h2,h3,h4,h5,h6')
-    ).map(h => h.tagName.toLowerCase() + ': ' + h.textContent.trim())""")
+    ).map(h => h.tagName.toLowerCase() + ': ' + h.textContent.trim().slice(0, 60))""")
 
 
 def ask_llm_for_level(outline, bad_html):
@@ -61,50 +88,46 @@ def ask_llm_for_level(outline, bad_html):
         messages=[{"role": "user", "content": prompt}],
     )
     raw = r.choices[0].message.content.strip().lower()
-    # The model sometimes replies "<h2>" or "h2." — keep only h1..h6.
-    match = re.search(r"h[1-6]", raw)
+    match = re.search(r"h[1-6]", raw)     # model sometimes replies "<h2>"
     return match.group(0) if match else "h2"
 
 
-def apply_heading_fix(page, bad_html, new_level):
-    page.evaluate("""({ badHtml, newLevel }) => {
-        for (const h of document.querySelectorAll('h1,h2,h3,h4,h5,h6')) {
-            if (h.outerHTML === badHtml) {
-                const fixed = document.createElement(newLevel);
-                fixed.innerHTML = h.innerHTML;
-                h.replaceWith(fixed);
-                break;
-            }
-        }
-    }""", {"badHtml": bad_html, "newLevel": new_level})
+def apply_heading_fix(page, selector, new_level):
+    page.evaluate("""({ sel, newLevel }) => {
+        const h = document.querySelector(sel);
+        if (!h) return;
+        const fixed = document.createElement(newLevel);
+        fixed.innerHTML = h.innerHTML;
+        for (const a of h.attributes) fixed.setAttribute(a.name, a.value);
+        h.replaceWith(fixed);
+    }""", {"sel": selector, "newLevel": new_level})
 
 
 def fix_headings(page):
-    """Returns (found, fixed). Loops over issues; retries each once."""
+    """Returns (attempted, fixed)."""
     found = count_nodes(page, "heading-order")
+    attempted = min(found, MAX_NODES_PER_TYPE)
     fixed = 0
+    seen = set()
 
-    while True:
+    for _ in range(attempted):
         issue = find_violation(scan(page), "heading-order")
         if issue is None:
             break
-        bad_html = issue["nodes"][0]["html"]
+        node, sel = next_unseen(issue, seen)
+        if node is None:
+            break
+        seen.add(sel)
         outline = get_heading_outline(page)
 
-        cleared = False
         for _ in range(MAX_RETRIES):
-            level = ask_llm_for_level(outline, bad_html)
-            apply_heading_fix(page, bad_html, level)
-            issue_now = find_violation(scan(page), "heading-order")
-            still_same = issue_now and issue_now["nodes"][0]["html"] == bad_html
-            if not still_same:
-                cleared = True
+            level = ask_llm_for_level(outline, node["html"])
+            apply_heading_fix(page, sel, level)
+            if not still_flagged(page, "heading-order", sel):
                 fixed += 1
                 break
-        if not cleared:
-            break  # unfixable — stop rather than loop forever
 
-    return found, fixed
+    return attempted, fixed
 
 
 # ---------- 2. contrast (pure math, Tier 1 — the control case) ----------
@@ -137,67 +160,93 @@ def darken_until_readable(fg_hex, bg_hex, target=4.5):
     return "#{:02x}{:02x}{:02x}".format(*fg)
 
 
-def apply_color_fix(page, bad_html, new_color):
-    page.evaluate("""({ badHtml, newColor }) => {
-        for (const el of document.querySelectorAll('*')) {
-            if (el.outerHTML === badHtml) { el.style.color = newColor; break; }
-        }
-    }""", {"badHtml": bad_html, "newColor": new_color})
+def apply_color_fix(page, selector, new_color):
+    # !important — site CSS often outranks a plain inline style.
+    page.evaluate("""({ sel, newColor }) => {
+        const el = document.querySelector(sel);
+        if (el) el.style.setProperty('color', newColor, 'important');
+    }""", {"sel": selector, "newColor": new_color})
 
 
 def fix_contrast(page):
     found = count_nodes(page, "color-contrast")
+    attempted = min(found, MAX_NODES_PER_TYPE)
     fixed = 0
-    for _ in range(found):
+    seen = set()
+
+    for _ in range(attempted):
         issue = find_violation(scan(page), "color-contrast")
         if issue is None:
             break
-        node = issue["nodes"][0]
-        data = node["any"][0]["data"]
-        new_color = darken_until_readable(data["fgColor"], data["bgColor"])
-        apply_color_fix(page, node["html"], new_color)
-        if count_nodes(page, "color-contrast") < found - fixed:
+        node, sel = next_unseen(issue, seen)
+        if node is None:
+            break
+        seen.add(sel)
+
+        data = (node.get("any") or [{}])[0].get("data") or {}
+        fg, bg = data.get("fgColor"), data.get("bgColor")
+        if not fg or not bg:
+            continue          # axe couldn't resolve colors (background image/gradient)
+
+        apply_color_fix(page, sel, darken_until_readable(fg, bg))
+        if not still_flagged(page, "color-contrast", sel):
             fixed += 1
-    return found, fixed
+
+    return attempted, fixed
 
 
 # ---------- 3. alt text (vision model, Tier 2 + Tier 3) ----------
 
-def _encode(path):
-    return base64.b64encode(path.read_bytes()).decode("utf-8")
+OK_TYPES = {"image/jpeg", "image/png", "image/gif", "image/webp"}
 
 
-def get_image_path(page, bad_html):
-    """Resolve the flagged <img>'s real file path on disk."""
-    src = page.evaluate("""(badHtml) => {
-        for (const img of document.querySelectorAll('img')) {
-            if (img.outerHTML === badHtml) return img.src;
-        }
-        return null;
-    }""", bad_html)
-    if not src or not src.startswith("file://"):
+def get_image_data(page, selector):
+    """Fetch the image bytes. Local or remote. Returns (b64, mime) or None."""
+    src = page.evaluate("""(sel) => {
+        const img = document.querySelector(sel);
+        return img ? (img.currentSrc || img.src) : null;
+    }""", selector)
+
+    if not src:
         return None
-    return Path(unquote(urlparse(src).path))
+
+    if src.startswith("file://"):
+        path = Path(unquote(urlparse(src).path))
+        if not path.exists():
+            return None
+        mime = "image/png" if path.suffix.lower() == ".png" else "image/jpeg"
+        return base64.b64encode(path.read_bytes()).decode("utf-8"), mime
+
+    if src.startswith("http"):
+        try:
+            resp = page.request.get(src, timeout=15000)
+            if not resp.ok:
+                return None
+            mime = (resp.headers.get("content-type") or "").split(";")[0].strip()
+            if mime not in OK_TYPES:
+                return None          # svg or unsupported
+            return base64.b64encode(resp.body()).decode("utf-8"), mime
+        except Exception:
+            return None              # network error / blocked
+
+    return None                      # data: URI or something else
 
 
-def describe_image(image_path):
-    b64 = _encode(image_path)
+def describe_image(b64, mime):
     r = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": [
             {"type": "text", "text":
                 "Write concise, accurate alt text for this image, for a screen reader. "
                 "One sentence. Do not start with 'image of'. Reply with only the alt text."},
-            {"type": "image_url",
-             "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
         ]}],
     )
     return r.choices[0].message.content.strip()
 
 
-def judge_alt_quality(image_path, alt_text):
-    """Tier 3 — probabilistic. Returns True if the judge says PASS."""
-    b64 = _encode(image_path)
+def judge_alt_quality(b64, mime, alt_text):
+    """Tier 3 — probabilistic. True if the judge says PASS."""
     r = client.chat.completions.create(
         model="gpt-4o-mini",
         messages=[{"role": "user", "content": [
@@ -205,45 +254,50 @@ def judge_alt_quality(image_path, alt_text):
                 f'Here is alt text written for the image below:\n\n"{alt_text}"\n\n'
                 "Does it accurately and usefully describe the image for a blind user?\n"
                 "Reply with ONLY one word: PASS or FAIL"},
-            {"type": "image_url",
-             "image_url": {"url": f"data:image/jpeg;base64,{b64}"}},
+            {"type": "image_url", "image_url": {"url": f"data:{mime};base64,{b64}"}},
         ]}],
     )
     return r.choices[0].message.content.strip().upper().startswith("PASS")
 
 
-def apply_alt_fix(page, bad_html, alt_text):
-    page.evaluate("""({ badHtml, altText }) => {
-        for (const img of document.querySelectorAll('img')) {
-            if (img.outerHTML === badHtml) { img.setAttribute('alt', altText); break; }
-        }
-    }""", {"badHtml": bad_html, "altText": alt_text})
+def apply_alt_fix(page, selector, alt_text):
+    page.evaluate("""({ sel, altText }) => {
+        const img = document.querySelector(sel);
+        if (img) img.setAttribute('alt', altText);
+    }""", {"sel": selector, "altText": alt_text})
 
 
 def fix_alt(page):
-    """Returns (found, presence_fixed, quality_passed)."""
+    """Returns (attempted, presence_fixed, quality_passed)."""
     found = count_nodes(page, "image-alt")
+    attempted = min(found, MAX_NODES_PER_TYPE)
     fixed = 0
     quality_passed = 0
+    seen = set()
 
-    for _ in range(found):
+    for _ in range(attempted):
         issue = find_violation(scan(page), "image-alt")
         if issue is None:
             break
-        bad_html = issue["nodes"][0]["html"]
-        img_path = get_image_path(page, bad_html)
-        if img_path is None or not img_path.exists():
-            break  # can't read the image — honest failure
+        node, sel = next_unseen(issue, seen)
+        if node is None:
+            break
+        seen.add(sel)
 
-        alt = describe_image(img_path)
-        apply_alt_fix(page, bad_html, alt)
+        data = get_image_data(page, sel)
+        if data is None:
+            continue          # unusable image — skip it, keep going
+        b64, mime = data
 
-        if count_nodes(page, "image-alt") < found - fixed:
-            fixed += 1                       # Tier 2: presence confirmed
-            if judge_alt_quality(img_path, alt):
-                quality_passed += 1          # Tier 3: quality judged
+        alt = describe_image(b64, mime)
+        apply_alt_fix(page, sel, alt)
 
-    return found, fixed, quality_passed
+        if not still_flagged(page, "image-alt", sel):
+            fixed += 1                                   # Tier 2
+            if judge_alt_quality(b64, mime, alt):
+                quality_passed += 1                      # Tier 3
+
+    return attempted, fixed, quality_passed
 
 
 # ---------- 4. form labels (LLM judgment, Tier 2) ----------
@@ -261,35 +315,38 @@ def suggest_label(input_html):
     return r.choices[0].message.content.strip()
 
 
-def apply_label_fix(page, bad_html, label_text):
-    page.evaluate("""({ badHtml, labelText }) => {
-        for (const inp of document.querySelectorAll('input')) {
-            if (inp.outerHTML === badHtml) {
-                inp.setAttribute('aria-label', labelText);
-                break;
-            }
-        }
-    }""", {"badHtml": bad_html, "labelText": label_text})
+def apply_label_fix(page, selector, label_text):
+    page.evaluate("""({ sel, labelText }) => {
+        const inp = document.querySelector(sel);
+        if (inp) inp.setAttribute('aria-label', labelText);
+    }""", {"sel": selector, "labelText": label_text})
 
 
 def fix_labels(page):
     found = count_nodes(page, "label")
+    attempted = min(found, MAX_NODES_PER_TYPE)
     fixed = 0
-    for _ in range(found):
+    seen = set()
+
+    for _ in range(attempted):
         issue = find_violation(scan(page), "label")
         if issue is None:
             break
-        bad_html = issue["nodes"][0]["html"]
-        apply_label_fix(page, bad_html, suggest_label(bad_html))
-        if count_nodes(page, "label") < found - fixed:
+        node, sel = next_unseen(issue, seen)
+        if node is None:
+            break
+        seen.add(sel)
+
+        apply_label_fix(page, sel, suggest_label(node["html"]))
+        if not still_flagged(page, "label", sel):
             fixed += 1
-    return found, fixed
+
+    return attempted, fixed
 
 
 # ---------- run all four on one page ----------
 
 def fix_page(page):
-    """Run every fixer on the loaded page. Returns a per-type record."""
     h_found, h_fixed = fix_headings(page)
     c_found, c_fixed = fix_contrast(page)
     a_found, a_fixed, a_quality = fix_alt(page)

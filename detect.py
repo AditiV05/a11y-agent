@@ -7,7 +7,12 @@ AXE_PATH = Path(__file__).parent / "vendor" / "axe.min.js"
 
 # Take the page from the command line; fall back to test_page.html if none given.
 if len(sys.argv) > 1:
-    URL = (Path(__file__).parent / sys.argv[1]).resolve().as_uri()
+    arg = sys.argv[1]
+    # A real web address passes through as-is; anything else is a local file.
+    if arg.startswith("http://") or arg.startswith("https://"):
+        URL = arg
+    else:
+        URL = (Path(__file__).parent / arg).resolve().as_uri()
 else:
     URL = (Path(__file__).parent / "test_page.html").resolve().as_uri()
 

@@ -79,7 +79,51 @@ def report(totals, alt_quality):
     print(f"\n  Of alt text applied, {q} rated adequate by an")
     print(f"  independent LLM judge (probabilistic).")
 
+REAL_SITES = [
+    "https://jaipur.manipal.edu/",
+    "https://sfsdelhi.com/",
+    "https://vvdav.org/",
+    "https://hyppy.in/",
+]
+
+
+def run_urls(urls):
+    totals = {t: {"found": 0, "fixed": 0} for t in TYPES}
+    alt_quality = 0
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch()
+        for url in urls:
+            page = browser.new_page()
+            try:
+                page.goto(url, wait_until="load", timeout=45000)
+            except Exception as e:
+                print(f"{url}  → could not load ({type(e).__name__})")
+                page.close()
+                continue
+
+            record = fix_page(page)
+
+            line = []
+            for t in TYPES:
+                r = record[t]
+                totals[t]["found"] += r["found"]
+                totals[t]["fixed"] += r["fixed"]
+                if r["found"]:
+                    line.append(f"{t} {r['fixed']}/{r['found']}")
+            alt_quality += record["image-alt"].get("quality_pass", 0)
+
+            print(f"{url}\n   {'  '.join(line) or 'nothing in scope'}")
+            page.close()
+        browser.close()
+
+    return totals, alt_quality
+
 
 if __name__ == "__main__":
-    totals, alt_quality = run_all()
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--real":
+        totals, alt_quality = run_urls(REAL_SITES)
+    else:
+        totals, alt_quality = run_all()
     report(totals, alt_quality)
